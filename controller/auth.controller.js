@@ -72,7 +72,7 @@ export const login = async (req, res, next) => {
         })
         res.status(200).json({
             success: true,
-            message: `Welcome back ${userData.name}`,
+            message: `Welcome back ${userData.fullname}`,
             userData
         })
     } catch (error) {
