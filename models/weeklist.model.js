@@ -24,7 +24,7 @@ const weeklistSchema = new Schema({
         required: [true, "Weeklist name is required"],
         minLength: [5, "Weeklist name must be at least 5 characters"]
     },
-    description: [taskSchema],
+    tasks: [taskSchema],
     endTime: {
         type: Date
     },
