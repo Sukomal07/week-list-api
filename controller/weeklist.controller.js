@@ -71,25 +71,9 @@ export const editWeeklist = async (req, res, next) => {
             return next(createError(400, "Cannot update weeklist after 24 hours of creation"));
         }
 
-        const currentDate = new Date();
-        const remainingDays = 6 - currentDate.getDay();
-        const remainingHours = 23 - currentDate.getHours();
-        const remainingMinutes = 59 - currentDate.getMinutes();
-        const endTime = new Date(
-            Date.parse(currentDate.toISOString()) +
-            (remainingDays * 24 * 60 * 60 * 1000) +
-            (remainingHours * 60 * 60 * 1000) +
-            (remainingMinutes * 60 * 1000)
-        );
-
-        const updatedData = {
-            ...req.body,
-            endTime,
-        };
-
         const updatedWeeklist = await Weeklist.findOneAndUpdate(
             { _id: weeklistId, userId: id },
-            { $set: updatedData },
+            { $set: req.body },
             { runValidators: true, new: true }
         );
 
@@ -132,21 +116,9 @@ export const deleteTasks = async (req, res, next) => {
         if (timeDifferenceInHours > 24) {
             return next(createError(400, "Cannot modify weeklist after 24 hours of creation"));
         }
-        const currentDate = new Date();
-        const remainingDays = 6 - currentDate.getDay();
-        const remainingHours = 23 - currentDate.getHours();
-        const remainingMinutes = 59 - currentDate.getMinutes();
-        const endTime = new Date(
-            Date.parse(currentDate.toISOString()) +
-            (remainingDays * 24 * 60 * 60 * 1000) +
-            (remainingHours * 60 * 60 * 1000) +
-            (remainingMinutes * 60 * 1000)
-        );
 
 
         weeklist.tasks = [];
-
-        weeklist.endTime = endTime
 
         await weeklist.save();
 
@@ -213,22 +185,13 @@ export const createTask = async (req, res, next) => {
             await existingWeeklist.save()
             return next(createError(400, "Cannot add tasks to an inactive weeklist"));
         }
-        const remainingDays = 6 - currentDate.getDay();
-        const remainingHours = 23 - currentDate.getHours();
-        const remainingMinutes = 59 - currentDate.getMinutes();
-        const endTime = new Date(
-            Date.parse(currentDate.toISOString()) +
-            (remainingDays * 24 * 60 * 60 * 1000) +
-            (remainingHours * 60 * 60 * 1000) +
-            (remainingMinutes * 60 * 1000)
-        );
 
         const newTask = {
             task
         };
 
         existingWeeklist.tasks.push(newTask);
-        existingWeeklist.endTime = endTime
+
         try {
             await existingWeeklist.validate()
         } catch (error) {
@@ -292,17 +255,6 @@ export const markTask = async (req, res, next) => {
             existingWeeklist.state = 'completed';
         }
 
-        const remainingDays = 6 - currentDate.getDay();
-        const remainingHours = 23 - currentDate.getHours();
-        const remainingMinutes = 59 - currentDate.getMinutes();
-        const endTime = new Date(
-            Date.parse(currentDate.toISOString()) +
-            (remainingDays * 24 * 60 * 60 * 1000) +
-            (remainingHours * 60 * 60 * 1000) +
-            (remainingMinutes * 60 * 1000)
-        );
-        existingWeeklist.endTime = endTime
-
         try {
             await existingWeeklist.validate();
         } catch (error) {
@@ -354,7 +306,7 @@ export const editTask = async (req, res, next) => {
         const timeDifferenceInHours = (currentTime - createdAtTime) / (1000 * 60 * 60);
 
         if (timeDifferenceInHours > 24) {
-            return next(createError(400, "Cannot delete weeklist after 24 hours of creation"));
+            return next(createError(400, "Cannot edit task after 24 hours of creation"));
         }
 
         const currentDate = new Date();
@@ -371,17 +323,6 @@ export const editTask = async (req, res, next) => {
         }
 
         existingWeeklist.tasks[taskIndex].task = updatedTask;
-
-        const remainingDays = 6 - currentDate.getDay();
-        const remainingHours = 23 - currentDate.getHours();
-        const remainingMinutes = 59 - currentDate.getMinutes();
-        const endTime = new Date(
-            Date.parse(currentDate.toISOString()) +
-            (remainingDays * 24 * 60 * 60 * 1000) +
-            (remainingHours * 60 * 60 * 1000) +
-            (remainingMinutes * 60 * 1000)
-        );
-        existingWeeklist.endTime = endTime
 
         try {
             await existingWeeklist.validate();
@@ -424,7 +365,7 @@ export const deleteTask = async (req, res, next) => {
         const timeDifferenceInHours = (currentTime - createdAtTime) / (1000 * 60 * 60);
 
         if (timeDifferenceInHours > 24) {
-            return next(createError(400, "Cannot delete weeklist after 24 hours of creation"));
+            return next(createError(400, "Cannot delete task after 24 hours of creation"));
         }
 
         const taskIndex = existingWeeklist.tasks.findIndex(task => task._id.toString() === taskId);
@@ -434,18 +375,6 @@ export const deleteTask = async (req, res, next) => {
         }
 
         existingWeeklist.tasks.splice(taskIndex, 1);
-
-        const currentDate = new Date();
-        const remainingDays = 6 - currentDate.getDay();
-        const remainingHours = 23 - currentDate.getHours();
-        const remainingMinutes = 59 - currentDate.getMinutes();
-        const endTime = new Date(
-            Date.parse(currentDate.toISOString()) +
-            (remainingDays * 24 * 60 * 60 * 1000) +
-            (remainingHours * 60 * 60 * 1000) +
-            (remainingMinutes * 60 * 1000)
-        );
-        existingWeeklist.endTime = endTime
         try {
             await existingWeeklist.validate();
         } catch (error) {
@@ -468,7 +397,45 @@ export const deleteTask = async (req, res, next) => {
     }
 }
 
+export const getAllWeeklists = async (req, res, next) => {
+    try {
+        const { id } = req.user;
 
+        const allWeeklists = await Weeklist.find({ userId: id, state: 'active' });
+
+        if (allWeeklists.length === 0) {
+            return next(createError(404, "No active weeklists found"));
+        }
+
+        const weeklistsWithTimeLeft = allWeeklists.map(weeklist => {
+            const currentDate = new Date();
+            const remainingTime = weeklist.endTime - currentDate;
+
+            const remainingDays = Math.floor(remainingTime / (1000 * 60 * 60 * 24));
+            const remainingHours = Math.floor((remainingTime % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const remainingMinutes = Math.floor((remainingTime % (1000 * 60 * 60)) / (1000 * 60));
+
+            return {
+                _id: weeklist._id,
+                name: weeklist.name,
+                tasks: weeklist.tasks,
+                state: weeklist.state,
+                timeLeft: {
+                    days: remainingDays,
+                    hours: remainingHours,
+                    minutes: remainingMinutes,
+                },
+            };
+        });
+
+        res.status(200).json({
+            success: true,
+            weeklists: weeklistsWithTimeLeft,
+        });
+    } catch (error) {
+        return next(createError(500, error.message));
+    }
+}
 
 
 
