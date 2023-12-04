@@ -51,6 +51,32 @@ export const createWeeklist = async (req, res, next) => {
     }
 }
 
+export const getWeeklistById = async (req, res, next) => {
+    try {
+        const { id } = req.user;
+        const { weeklistId } = req.params;
+
+        const weeklist = await Weeklist.findOne({ _id: weeklistId, userId: id });
+
+        if (!weeklist) {
+            return next(createError(404, "Weeklist not found"));
+        }
+
+        const currentDate = new Date();
+        if (weeklist.endTime <= currentDate) {
+            weeklist.state = 'inactive';
+            await weeklist.save();
+        }
+
+        res.status(200).json({
+            success: true,
+            weeklist
+        });
+    } catch (error) {
+        return next(createError(500, error.message));
+    }
+}
+
 export const editWeeklist = async (req, res, next) => {
     try {
         const { id } = req.user;
@@ -407,13 +433,18 @@ export const getAllWeeklists = async (req, res, next) => {
             return next(createError(404, "No active weeklists found"));
         }
 
-        const weeklistsWithTimeLeft = allWeeklists.map(weeklist => {
+        const weeklistsWithTimeLeft = allWeeklists.map(async (weeklist) => {
             const currentDate = new Date();
             const remainingTime = weeklist.endTime - currentDate;
 
             const remainingDays = Math.floor(remainingTime / (1000 * 60 * 60 * 24));
             const remainingHours = Math.floor((remainingTime % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
             const remainingMinutes = Math.floor((remainingTime % (1000 * 60 * 60)) / (1000 * 60));
+
+            if (remainingTime <= 0) {
+                weeklist.state = 'inactive';
+                await weeklist.save();
+            }
 
             return {
                 _id: weeklist._id,
@@ -427,22 +458,13 @@ export const getAllWeeklists = async (req, res, next) => {
                 },
             };
         });
-
+        const updatedActiveWeeklists = await Promise.all(weeklistsWithTimeLeft);
         res.status(200).json({
             success: true,
-            weeklists: weeklistsWithTimeLeft,
+            weeklists: updatedActiveWeeklists,
         });
     } catch (error) {
         return next(createError(500, error.message));
     }
 }
-
-
-
-
-
-
-
-
-
 
